@@ -14,45 +14,50 @@ interface Comment {
     comment_text: string;
     created_at: string;
     parent_id: string | null;
-    user_email?: string; // Add this line
-    profiles?: { email: string }[]; // Update to handle an array of profiles
+    user_email?: string;
 }
 
-export default function CommentSection({ user }: { user: User }) {
+interface CommentSectionProps {
+    user: User | null;
+    onCommentClick: () => void; // Add this prop
+}
+
+export default function CommentSection({ user, onCommentClick }: CommentSectionProps) {
     const [comments, setComments] = useState<Comment[]>([]);
     const [newComment, setNewComment] = useState('');
     const [replies, setReplies] = useState<{ [key: string]: string }>({});
 
     useEffect(() => {
-        if (user) {
-            fetchComments();
-        }
-    }, [user]);
+        fetchComments();
+    }, []);
 
     const fetchComments = async () => {
         try {
-          const { data, error } = await supabase
-            .from('comments')
-            .select('id, user_id, comment_text, created_at, parent_id, user_email')
-            .order('created_at', { ascending: false });
-      
-          if (error) {
-            throw error;
-          }
-      
-          if (data) {
-            // No need to map the data, just set it directly
-            setComments(data);
-          }
+            const { data, error } = await supabase
+                .from('comments')
+                .select('id, user_id, comment_text, created_at, parent_id, user_email')
+                .order('created_at', { ascending: false });
+
+            if (error) {
+                throw error;
+            }
+
+            if (data) {
+                setComments(data);
+            }
         } catch (error) {
-          console.error('Error fetching comments:', error);
+            console.error('Error fetching comments:', error);
         }
-      };
-      
+    };
 
     const handleAddComment = async (parentId: string | null = null) => {
-        if (!newComment.trim() || !user) return;
-    
+        if (!user) {
+            onCommentClick(); // Trigger the login prompt
+            return;
+        }
+
+        if (!newComment.trim()) return;
+
         const { error } = await supabase.from('comments').insert([
             { 
                 user_id: user.id, 
@@ -61,7 +66,7 @@ export default function CommentSection({ user }: { user: User }) {
                 user_email: user.email, // Add the user's email
             },
         ]);
-    
+
         if (error) {
             console.error('Supabase Error:', error);
             alert(`Error: ${error.message || 'Unknown error occurred'}`);
@@ -76,11 +81,21 @@ export default function CommentSection({ user }: { user: User }) {
     };
 
     const handleAddReply = async (commentId: string) => {
+        if (!user) {
+            onCommentClick(); // Trigger the login prompt
+            return;
+        }
+
         const replyText = replies[commentId];
-        if (!replyText.trim() || !user) return;
+        if (!replyText.trim()) return;
 
         const { error } = await supabase.from('comments').insert([
-            { user_id: user.id, comment_text: replyText, parent_id: commentId, user_email: user.email},
+            { 
+                user_id: user.id, 
+                comment_text: replyText, 
+                parent_id: commentId,
+                user_email: user.email, // Add the user's email
+            },
         ]);
 
         if (error) console.error(error);
@@ -92,10 +107,10 @@ export default function CommentSection({ user }: { user: User }) {
 
     // Function to format the date in IST and human-readable format
     const formatDate = (timestamp: string) => {
-    const date = new Date(timestamp); // Parse the timestamp
-    const istDate = toZonedTime(date, 'Asia/Kolkata'); // Convert to IST
-    return formatDistanceToNow(istDate, { addSuffix: true }); // Format as "just now" or "5 minutes ago"
-};
+        const date = new Date(timestamp); // Parse the timestamp
+        const istDate = toZonedTime(date, 'Asia/Kolkata'); // Convert to IST
+        return formatDistanceToNow(istDate, { addSuffix: true }); // Format as "just now" or "5 minutes ago"
+    };
 
     return (
         <div>
@@ -108,7 +123,10 @@ export default function CommentSection({ user }: { user: User }) {
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
                 />
-                <button onClick={() => handleAddComment()} className="mt-2 px-4 py-2 bg-blue-500 text-white rounded">
+                <button 
+                    onClick={() => handleAddComment()} 
+                    className="mt-2 px-4 py-2 bg-blue-500 text-white rounded"
+                >
                     Add Comment
                 </button>
             </div>
@@ -144,18 +162,17 @@ export default function CommentSection({ user }: { user: User }) {
 
                                     {/* Replies */}
                                     <div className="ml-10 mt-2 text-black border-l-2 pl-2">
-                                    {comments
-                                        .filter((c) => c.parent_id === comment.id)
-                                        .map((reply) => (
-                                        <div key={reply.id} className="mt-2">
-                                            <p className="text-sm text-black-600">
-                                            {reply.user_email} • {formatDate(reply.created_at)}
-                                            </p>
-                                            <p className="text-md">{reply.comment_text}</p>
-                                        </div>
-                                        ))}
+                                        {comments
+                                            .filter((c) => c.parent_id === comment.id) // Show only replies to this comment
+                                            .map((reply) => (
+                                                <div key={reply.id} className="mt-2">
+                                                    <p className="text-sm text-black-600">
+                                                        {reply.user_email} • {formatDate(reply.created_at)}
+                                                    </p>
+                                                    <p className="text-md">{reply.comment_text}</p>
+                                                </div>
+                                            ))}
                                     </div>
-
                                 </div>
                             ))}
                     </div>

@@ -1,38 +1,42 @@
-// app/protected/page.tsx
+
 'use client';
 
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import CommentSection from '@/app/components/CommentSection';
-import { useEffect } from 'react';
 
 export default function ProtectedPage() {
     const { user, signOut } = useAuth();
     const router = useRouter();
 
-    useEffect(() => {
+    const handleCommentClick = () => {
         if (!user) {
-            router.push('/login');
+            alert('Please log in to comment.'); // Show a login prompt
+            router.push('/login'); // Redirect to the login page
         }
-    }, [user, router]);
-
-    if (!user) return null;
+    };
 
     return (
         <div>
             <div className="mt-16 mb-10 flex flex-col items-center justify-center">
                 <h1 className="text-2xl font-bold">Protected Page</h1>
-                <p>Welcome, {user.email}!</p>
-                <button
-                    onClick={signOut}
-                    className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
-                >
-                    Sign Out
-                </button>
+                {user ? (
+                    <>
+                        <p>Welcome, {user.email}!</p>
+                        <button
+                            onClick={signOut}
+                            className="mt-4 px-4 py-2 bg-red-500 text-white rounded"
+                        >
+                            Sign Out
+                        </button>
+                    </>
+                ) : (
+                    <p>Welcome, guest! Please log in to comment.</p>
+                )}
             </div>
 
-            {/* Render the CommentSection component */}
-            <CommentSection user={user} />
+            {/* Render the CommentSection */}
+            <CommentSection user={user} onCommentClick={handleCommentClick} />
         </div>
     );
 }
